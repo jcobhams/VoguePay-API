@@ -20,7 +20,7 @@ class voguePay
     //  Default: none
 
     private $api_host = "https://voguepay.com/api"; //holds api end point for the command APIs
-    private $payment_url = "https://voguepay.com/pay/"; //holds the payment link
+    public $payment_url = "https://voguepay.com/pay/"; //holds the payment link
     private $developer_code; //optional developer code for commissions
     private $api_ver ='1.0'; //voguepay API version
     private $wrapper_ver = '1.0'; //this script version.
@@ -43,7 +43,7 @@ class voguePay
     //*************** DEBUG *******************
     //  Debuging flag
     //  Type: Boolean
-    private $debug = false;
+    private $debug = true;
     public $debug_msg;
     //  Options: true | false
     //  Default: false
@@ -54,6 +54,8 @@ class voguePay
         $this->merchant_id = $merchant_id;
         if(!empty($developer_code)) $this->developer_code = $developer_code;
     }
+
+    //PAYMENT FORM METHODS
 
     public function getPaymentFormParts($part)
     {
@@ -104,7 +106,7 @@ class voguePay
 
     //PAYMENT VERIFICATION METHODS
 
-    private function getPaymentDetails($transaction_id,$type="json")
+    public function getPaymentDetails($transaction_id,$type="json")
     {
         //currently only json format is supported. But XML would be added soon.
         $url = "https://voguepay.com/?v_transaction_id={$transaction_id}&type={$type}";
@@ -121,7 +123,7 @@ class voguePay
                 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
             }
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windowos NT 5.1; en-NG; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13 Vyren Media-VoguePay API Ver 1.0");
-            if($this->debug){ $this->debug_msg[] = curl_error($ch); }
+            if(curl_errno($ch) && $this->debug==true){ $this->debug_msg[] = curl_error($ch)." - [Called In getPaymentDetails() CURL]"; }
             $output = curl_exec($ch);
             curl_close($ch);
         }
@@ -129,7 +131,7 @@ class voguePay
         if($this->connection_type =="fgc")
         {
             $output = file_get_contents($url);
-            if(!output && $this->debug==true) {$this->debug_msg[] = "Failed To Get JSON Data"; }
+            if(!output && $this->debug==true) {$this->debug_msg[] = "Failed To Get JSON Data - [Called In getPaymentDetails() FGC]"; }
         }
         return $output;
 
@@ -138,6 +140,7 @@ class voguePay
     public function verifyPayment($transaction_id)
     {
         $details = json_decode($this->getPaymentDetails($transaction_id,"json"));
+        if(!$details && $this->debug==true){ $this->debug_msg[] = "Failed Getting Transaction Details - [Called In verifyPayment()]";}
         if($details->total < 1) return json_encode(array("state"=>"error","msg"=>"Invalid Transaction"));
         if($details->status != 'Approved') return json_encode(array("state"=>"error","msg"=>"Transaction {$details->status}"));
         return json_encode(array("state"=>"success","msg"=>"Transaction Approved"));
